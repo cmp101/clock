@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Trading Monitor</title>
+    <title>Trading Dashboard</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/color/512/candlestick-chart.png">
     <style>
         :root {
-            --bg-color: #0a0e14;
-            --card-bg: #171d26;
-            --text-main: #e2e8f0;
-            --text-dim: #64748b;
+            --bg-color: #080a0f;
+            --card-bg: #121822;
+            --text-main: #f1f5f9;
+            --text-dim: #94a3b8;
             --accent: #38bdf8;
             --open: #22c55e;
             --closed: #ef4444;
@@ -19,51 +20,56 @@
         }
 
         body {
-            font-family: -apple-system, system-ui, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
             margin: 0;
-            padding: 40px 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            padding: calc(env(safe-area-inset-top) + 20px) 16px 40px 16px;
+            display: flex; flex-direction: column; align-items: center;
         }
 
-        .header { margin-bottom: 30px; text-align: center; }
-        .header h1 { font-size: 1.2rem; font-weight: 400; color: var(--accent); letter-spacing: 2px; }
+        .header { margin-bottom: 20px; border-bottom: 1px solid #1e293b; width: 100%; text-align: center; padding-bottom: 10px; }
+        .header h1 { font-size: 0.9rem; letter-spacing: 3px; color: var(--text-dim); margin: 0; }
 
-        .container { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 16px; }
+        .container { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
 
         .card {
             background: var(--card-bg);
-            padding: 20px;
-            border-radius: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid #2d3748;
+            padding: 16px 20px;
+            border-radius: 18px;
+            display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid #1e293b;
         }
 
         .city-info { display: flex; flex-direction: column; }
         .name { font-size: 1rem; font-weight: 600; margin-bottom: 2px; }
-        .label { font-size: 0.75rem; color: var(--text-dim); }
+        .label { font-size: 0.7rem; color: var(--text-dim); }
         
         .time-info { text-align: right; }
-        .time { font-family: 'Menlo', 'Courier New', monospace; font-size: 1.7rem; font-weight: 700; margin-bottom: 4px; }
-        .status { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block; }
+        .time { font-family: 'SF Mono', 'Menlo', monospace; font-size: 1.6rem; font-weight: 700; }
+        .status { font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; margin-top: 5px; display: inline-block; }
 
-        .status-open { background: rgba(34, 197, 94, 0.2); color: var(--open); }
-        .status-closed { background: rgba(239, 68, 68, 0.2); color: var(--closed); }
-        .status-lunch { background: rgba(245, 158, 11, 0.2); color: var(--lunch); }
+        .status-open { background: rgba(34, 197, 94, 0.15); color: var(--open); }
+        .status-closed { background: rgba(239, 68, 68, 0.15); color: var(--closed); }
+        .status-lunch { background: rgba(245, 158, 11, 0.15); color: var(--lunch); }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>TRADING CLOCK</h1>
-    </div>
+    <div class="header"><h1>TRADING DASHBOARD</h1></div>
 
     <div class="container">
+        <div class="card">
+            <div class="city-info">
+                <span class="name">首尔 (KOSPI 200)</span>
+                <span class="label" id="date-kr">---</span>
+            </div>
+            <div class="time-info">
+                <div class="time" id="time-kr">00:00:00</div>
+                <div id="status-kr" class="status">Checking...</div>
+            </div>
+        </div>
+
         <div class="card">
             <div class="city-info">
                 <span class="name">香港 (HKEX)</span>
@@ -77,7 +83,7 @@
 
         <div class="card">
             <div class="city-info">
-                <span class="name">纽约 (NYSE)</span>
+                <span class="name">纽约 (NYSE/CME)</span>
                 <span class="label" id="date-ny">---</span>
             </div>
             <div class="time-info">
@@ -86,73 +92,77 @@
             </div>
         </div>
 
-        <div class="card">
+        <div class="card" style="border-left: 4px solid var(--accent);">
             <div class="city-info">
-                <span class="name">萨斯卡通 (Saskatoon)</span>
+                <span class="name">萨斯卡通 (Local)</span>
                 <span class="label" id="date-sk">---</span>
             </div>
             <div class="time-info">
                 <div class="time" id="time-sk">00:00:00</div>
-                <div class="label">Local Time</div>
+                <div class="label" style="font-size: 0.65rem;">System Local Time</div>
             </div>
         </div>
     </div>
 
     <script>
-        function getMarketStatus(zone, hour, min, day) {
-            const isWeekend = (day === 'Sat' || day === 'Sun');
-            const totalMin = hour * 60 + min;
+        function getStatus(market, h, m, d) {
+            const isWknd = (d === 'Sat' || d === 'Sun');
+            const min = h * 60 + m;
 
-            if (zone === 'HK') {
-                if (isWeekend) return { text: 'CLOSED', class: 'status-closed' };
-                // 港股: 09:30-12:00, 13:00-16:00
-                if (totalMin >= 570 && totalMin < 720) return { text: 'MARKET OPEN', class: 'status-open' };
-                if (totalMin >= 720 && totalMin < 780) return { text: 'LUNCH BREAK', class: 'status-lunch' };
-                if (totalMin >= 780 && totalMin < 960) return { text: 'MARKET OPEN', class: 'status-open' };
+            if (market === 'KR') {
+                if (isWknd) return { text: 'CLOSED', class: 'status-closed' };
+                return (min >= 540 && min < 945) ? { text: 'MARKET OPEN', class: 'status-open' } : { text: 'CLOSED', class: 'status-closed' };
+            }
+            if (market === 'HK') {
+                if (isWknd) return { text: 'CLOSED', class: 'status-closed' };
+                if (min >= 570 && min < 720) return { text: 'OPEN', class: 'status-open' };
+                if (min >= 720 && min < 780) return { text: 'LUNCH', class: 'status-lunch' };
+                if (min >= 780 && min < 960) return { text: 'OPEN', class: 'status-open' };
                 return { text: 'CLOSED', class: 'status-closed' };
             }
-
-            if (zone === 'NY') {
-                if (isWeekend) return { text: 'CLOSED', class: 'status-closed' };
-                // 美股: 09:30-16:00
-                if (totalMin >= 570 && totalMin < 960) return { text: 'MARKET OPEN', class: 'status-open' };
-                return { text: 'CLOSED', class: 'status-closed' };
+            if (market === 'NY') {
+                if (isWknd) return { text: 'CLOSED', class: 'status-closed' };
+                return (min >= 570 && min < 960) ? { text: 'MARKET OPEN', class: 'status-open' } : { text: 'CLOSED', class: 'status-closed' };
             }
         }
 
         function update() {
             const now = new Date();
+            
+            // 1. 先更新萨斯卡通时间 (直接取系统时间，不传时区参数，确保万无一失)
+            document.getElementById('time-sk').textContent = now.toLocaleTimeString('en-GB', { hour12: false });
+            document.getElementById('date-sk').textContent = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
+
+            // 2. 更新其他交易时区
             const config = [
-                { id: 'hk', zone: 'Asia/Hong_Kong', market: 'HK' },
-                { id: 'ny', zone: 'America/New_York', market: 'NY' },
-                { id: 'sk', zone: 'America/Saskatchewan', market: null }
+                { id: 'kr', z: 'Asia/Seoul', m: 'KR' },
+                { id: 'hk', z: 'Asia/Hong_Kong', m: 'HK' },
+                { id: 'ny', z: 'America/New_York', m: 'NY' }
             ];
 
-            config.forEach(item => {
-                // 时间显示
-                const timeStr = now.toLocaleTimeString('en-GB', { timeZone: item.zone, hour12: false });
-                const dateStr = now.toLocaleDateString('en-US', { timeZone: item.zone, month: 'short', day: 'numeric', weekday: 'short' });
-                document.getElementById(`time-${item.id}`).textContent = timeStr;
-                document.getElementById(`date-${item.id}`).textContent = dateStr;
+            config.forEach(cfg => {
+                try {
+                    const timeStr = now.toLocaleTimeString('en-GB', { timeZone: cfg.z, hour12: false });
+                    const dateStr = now.toLocaleDateString('en-US', { timeZone: cfg.z, month: 'short', day: 'numeric', weekday: 'short' });
+                    
+                    document.getElementById(`time-${cfg.id}`).textContent = timeStr;
+                    document.getElementById(`date-${cfg.id}`).textContent = dateStr;
 
-                // 交易状态显示
-                if (item.market) {
-                    const parts = new Intl.DateTimeFormat('en-US', {
-                        timeZone: item.zone, hour: 'numeric', minute: 'numeric', hour12: false, weekday: 'short'
-                    }).formatToParts(now);
+                    const parts = new Intl.DateTimeFormat('en-US', { timeZone: cfg.z, hour: 'numeric', minute: 'numeric', hour12: false, weekday: 'short' }).formatToParts(now);
                     const h = parseInt(parts.find(p => p.type === 'hour').value);
                     const m = parseInt(parts.find(p => p.type === 'minute').value);
                     const d = parts.find(p => p.type === 'weekday').value;
-
-                    const status = getMarketStatus(item.market, h, m, d);
-                    const el = document.getElementById(`status-${item.id}`);
-                    el.textContent = status.text;
-                    el.className = `status ${status.class}`;
+                    
+                    const s = getStatus(cfg.m, h, m, d);
+                    const el = document.getElementById(`status-${cfg.id}`);
+                    el.textContent = s.text; 
+                    el.className = `status ${s.class}`;
+                } catch (e) {
+                    console.error("Error updating " + cfg.id, e);
                 }
             });
         }
-
-        setInterval(update, 1000);
+        setInterval(update, 1000); 
         update();
     </script>
 </body>
